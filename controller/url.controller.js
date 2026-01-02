@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { URL } from "../models/url.model.js";
 
-async function handleGenerateShortUrl(req, res) {
+const handleGenerateShortUrl = async (req, res) => {
     const body = req.body
     if (!body.url) {
         return res.status(400).json({
@@ -16,7 +16,7 @@ async function handleGenerateShortUrl(req, res) {
         visitHistory: []
     })
     console.log(result)
-    return res.json({
+    return res.status(201).json({
         shortId: shortId
     })
 }
@@ -35,4 +35,19 @@ const redirectFromShortUrl = async (req, res) => {
     res.redirect(result.redirectUrl)
 }
 
-export { handleGenerateShortUrl, redirectFromShortUrl }
+const getAnalyticsofShortUrl = async (req, res) => {
+    const shortId = req.params.shortId
+
+    if (!shortId) {
+        return res.status(400).json({
+            error: "ShortId is required."
+        })
+    }
+    const result = await URL.findOne({ shortId })
+
+    return res.status(200).json({
+        totalClicks: result.visitHistory.length,
+        visitHistory: result.visitHistory
+    })
+}
+export { handleGenerateShortUrl, redirectFromShortUrl, getAnalyticsofShortUrl }
