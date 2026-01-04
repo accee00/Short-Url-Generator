@@ -2,52 +2,94 @@ import { nanoid } from "nanoid";
 import { URL } from "../models/url.model.js";
 
 const handleGenerateShortUrl = async (req, res) => {
-    const body = req.body
-    if (!body.url) {
-        return res.status(400).json({
-            error: "Url is required"
-        })
-    }
+    try {
+        const { url } = req.body;
 
-    const shortId = nanoid(8)
-    const result = await URL.create({
-        shortId: shortId,
-        redirectUrl: body.url,
-        visitHistory: []
-    })
-    console.log(result)
-    return res.status(201).json({
-        shortId: shortId
-    })
-}
+        if (!url) {
+            return res.status(400).json({
+                error: "URL is required",
+            });
+        }
+
+        const shortId = nanoid(8);
+
+        await URL.create({
+            shortId,
+            redirectUrl: url,
+            visitHistory: [],
+        });
+
+        return res.status(201).json({
+            shortId,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: "Failed to create short URL",
+        });
+    }
+};
 
 const redirectFromShortUrl = async (req, res) => {
-    const shortId = req.params.shortId
-    const result = await URL.findOneAndUpdate({
-        shortId
-    }, {
-        $push: {
-            visitHistory: {
-                timestamp: Date.now()
-            }
+    try {
+        const { shortId } = req.params;
+
+        const result = await URL.findOneAndUpdate(
+            { shortId },
+            {
+                $push: {
+                    visitHistory: {
+                        timestamp: new Date(),
+                    },
+                },
+            },
+            { new: true }
+        );
+
+        if (!result) {
+            return res.status(404).json({
+                error: "Short URL not found",
+            });
         }
-    })
-    res.redirect(result.redirectUrl)
-}
+
+        return res.redirect(302, result.redirectUrl);
+    } catch (error) {
+        return res.status(500).json({
+            error: "Redirect failed",
+        });
+    }
+};
 
 const getAnalyticsofShortUrl = async (req, res) => {
-    const shortId = req.params.shortId
+    try {
+        const { shortId } = req.params;
 
-    if (!shortId) {
-        return res.status(400).json({
-            error: "ShortId is required."
-        })
+        if (!shortId) {
+            return res.status(400).json({
+                error: "ShortId is required",
+            });
+        }
+
+        const result = await URL.findOne({ shortId });
+
+        if (!result) {
+            return res.status(404).json({
+                error: "Short URL not found",
+            });
+        }
+
+        return res.status(200).json({
+            totalClicks: result.visitHistory.length,
+            visitHistory: result.visitHistory,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            error: "Failed to fetch analytics",
+        });
     }
-    const result = await URL.findOne({ shortId })
+};
 
-    return res.status(200).json({
-        totalClicks: result.visitHistory.length,
-        visitHistory: result.visitHistory
-    })
-}
-export { handleGenerateShortUrl, redirectFromShortUrl, getAnalyticsofShortUrl }
+export {
+    handleGenerateShortUrl,
+    redirectFromShortUrl,
+    getAnalyticsofShortUrl,
+};
